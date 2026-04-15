@@ -1,0 +1,46 @@
+{
+  "ML + Regime MVO": {
+    "Total Return (%)": 121.73,
+    "Ann. Return (%)": 17.07,
+    "Ann. Volatility (%)": 25.86,
+    "Sharpe Ratio": 0.486,
+    "Sortino Ratio": 0.573,
+    "Calmar Ratio": 0.345,
+    "Max Drawdown (%)": -49.53,
+    "Skewness": -1.021,
+    "Kurtosis": 22.458
+  },
+  "Classical MVO": {
+    "Total Return (%)": 106.47,
+    "Ann. Return (%)": 15.13,
+    "Ann. Volatility (%)": 23.05,
+    "Sharpe Ratio": 0.461,
+    "Sortino Ratio": 0.578,
+    "Calmar Ratio": 0.404,
+    "Max Drawdown (%)": -37.39,
+    "Skewness": -0.515,
+    "Kurtosis": 8.1
+  },
+  "Equal Weight": {
+    "Total Return (%)": 107.99,
+    "Ann. Return (%)": 14.64,
+    "Ann. Volatility (%)": 20.18,
+    "Sharpe Ratio": 0.502,
+    "Sortino Ratio": 0.564,
+    "Calmar Ratio": 0.345,
+    "Max Drawdown (%)": -42.48,
+    "Skewness": -1.085,
+    "Kurtosis": 21.921
+  },
+  "SPY (Benchmark)": {
+    "Total Return (%)": 121.17,
+    "Ann. Return (%)": 15.65,
+    "Ann. Volatility (%)": 19.97,
+    "Sharpe Ratio": 0.558,
+    "Sortino Ratio": 0.655,
+    "Calmar Ratio": 0.408,
+    "Max Drawdown (%)": -38.36,
+    "Skewness": -0.873,
+    "Kurtosis": 13.358
+  }
+}

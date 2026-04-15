@@ -1,0 +1,5 @@
+,Total Return (%),Ann. Return (%),Ann. Volatility (%),Sharpe Ratio,Sortino Ratio,Calmar Ratio,Max Drawdown (%),Skewness,Kurtosis
+ML + Regime MVO,121.73,17.07,25.86,0.486,0.573,0.345,-49.53,-1.021,22.458
+Classical MVO,106.47,15.13,23.05,0.461,0.578,0.404,-37.39,-0.515,8.1
+Equal Weight,107.99,14.64,20.18,0.502,0.564,0.345,-42.48,-1.085,21.921
+SPY (Benchmark),121.17,15.65,19.97,0.558,0.655,0.408,-38.36,-0.873,13.358

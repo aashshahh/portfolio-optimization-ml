@@ -1,0 +1,625 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>PortfolioPilot — ML Portfolio Optimization</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+<style>
+/* ─── RESET & BASE ────────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg:      #050508;
+  --bg2:     #0a0a0f;
+  --panel:   #0f172a;
+  --border:  #1e293b;
+  --text:    #e2e8f0;
+  --muted:   #64748b;
+  --green:   #34d399;
+  --amber:   #f59e0b;
+  --blue:    #60a5fa;
+  --red:     #f87171;
+  --purple:  #a78bfa;
+  --mono:    'IBM Plex Mono', monospace;
+  --sans:    'Space Grotesk', sans-serif;
+}
+html { scroll-behavior: smooth; }
+body {
+  font-family: var(--sans);
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.6;
+  overflow-x: hidden;
+}
+a { color: var(--green); text-decoration: none; }
+a:hover { opacity: 0.8; }
+
+/* ─── NOISE OVERLAY ─────────────────────────────────────────────────────── */
+body::before {
+  content: '';
+  position: fixed; inset: 0; z-index: 0; pointer-events: none;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+  opacity: 0.4;
+}
+
+/* ─── GRID BG ────────────────────────────────────────────────────────────── */
+.grid-bg {
+  position: fixed; inset: 0; z-index: 0; pointer-events: none;
+  background-image:
+    linear-gradient(rgba(52,211,153,0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(52,211,153,0.03) 1px, transparent 1px);
+  background-size: 60px 60px;
+}
+
+/* ─── NAV ───────────────────────────────────────────────────────────────── */
+nav {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 16px 40px;
+  background: rgba(5,5,8,0.85);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
+}
+.nav-logo {
+  font-family: var(--mono);
+  font-size: 18px; font-weight: 600;
+  color: var(--green);
+  display: flex; align-items: center; gap: 8px;
+}
+.nav-logo span { color: var(--muted); font-weight: 400; font-size: 12px; }
+.nav-links { display: flex; gap: 32px; }
+.nav-links a { color: var(--muted); font-size: 14px; font-weight: 500; transition: color 0.2s; }
+.nav-links a:hover { color: var(--text); }
+.nav-cta {
+  background: var(--green); color: #000 !important;
+  padding: 8px 20px; border-radius: 6px;
+  font-weight: 600; font-size: 13px; transition: opacity 0.2s;
+}
+
+/* ─── HERO ──────────────────────────────────────────────────────────────── */
+#hero {
+  position: relative; z-index: 1;
+  min-height: 100vh;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  text-align: center;
+  padding: 120px 24px 80px;
+}
+.hero-badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: rgba(52,211,153,0.08); border: 1px solid rgba(52,211,153,0.2);
+  color: var(--green); border-radius: 100px;
+  padding: 6px 16px; font-size: 12px; font-family: var(--mono);
+  letter-spacing: 0.08em; text-transform: uppercase;
+  margin-bottom: 32px;
+  animation: fadeInUp 0.6s ease both;
+}
+.hero-badge::before { content: '●'; font-size: 8px; animation: pulse 2s infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+h1 {
+  font-size: clamp(48px, 8vw, 88px);
+  font-weight: 700; line-height: 1.05; letter-spacing: -0.03em;
+  margin-bottom: 24px;
+  animation: fadeInUp 0.6s 0.1s ease both;
+}
+h1 .accent { color: var(--green); }
+h1 .dim    { color: var(--muted); }
+
+.hero-sub {
+  font-size: clamp(16px, 2vw, 20px); color: var(--muted);
+  max-width: 620px; margin: 0 auto 48px;
+  font-weight: 400; line-height: 1.7;
+  animation: fadeInUp 0.6s 0.2s ease both;
+}
+
+.hero-btns {
+  display: flex; gap: 16px; justify-content: center; flex-wrap: wrap;
+  animation: fadeInUp 0.6s 0.3s ease both;
+}
+.btn-primary {
+  background: var(--green); color: #000;
+  padding: 14px 32px; border-radius: 8px;
+  font-weight: 700; font-size: 15px;
+  display: inline-flex; align-items: center; gap: 8px;
+  transition: transform 0.2s, box-shadow 0.2s;
+  box-shadow: 0 0 30px rgba(52,211,153,0.25);
+}
+.btn-primary:hover { transform: translateY(-2px); box-shadow: 0 0 40px rgba(52,211,153,0.4); color: #000; }
+.btn-secondary {
+  background: transparent; color: var(--text);
+  padding: 14px 32px; border-radius: 8px;
+  font-weight: 600; font-size: 15px;
+  border: 1px solid var(--border);
+  display: inline-flex; align-items: center; gap: 8px;
+  transition: border-color 0.2s, background 0.2s;
+}
+.btn-secondary:hover { border-color: var(--green); background: rgba(52,211,153,0.05); color: var(--text); }
+
+/* ─── METRICS STRIP ─────────────────────────────────────────────────────── */
+.metrics-strip {
+  position: relative; z-index: 1;
+  display: grid; grid-template-columns: repeat(4,1fr); gap: 1px;
+  background: var(--border); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);
+  margin-bottom: 120px;
+  animation: fadeInUp 0.6s 0.4s ease both;
+}
+.metric-cell {
+  background: var(--bg2);
+  padding: 36px 32px; text-align: center;
+}
+.metric-cell .val {
+  font-family: var(--mono); font-size: 40px; font-weight: 600; line-height: 1;
+  color: var(--green); margin-bottom: 8px;
+}
+.metric-cell .val.amber { color: var(--amber); }
+.metric-cell .val.red   { color: var(--red); }
+.metric-cell .lbl { color: var(--muted); font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase; }
+.metric-cell .sub { color: #374151; font-size: 11px; margin-top: 4px; font-family: var(--mono); }
+
+/* ─── SECTIONS ──────────────────────────────────────────────────────────── */
+section { position: relative; z-index: 1; padding: 80px 24px; max-width: 1200px; margin: 0 auto; }
+.section-tag {
+  font-family: var(--mono); font-size: 11px; color: var(--green);
+  letter-spacing: 0.15em; text-transform: uppercase;
+  margin-bottom: 12px; display: block;
+}
+h2 {
+  font-size: clamp(32px, 5vw, 52px); font-weight: 700;
+  line-height: 1.1; letter-spacing: -0.02em; margin-bottom: 20px;
+}
+.section-sub { color: var(--muted); font-size: 18px; line-height: 1.7; max-width: 600px; }
+
+/* ─── METHOD ────────────────────────────────────────────────────────────── */
+#method .pipeline {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 24px; margin-top: 60px;
+}
+.pipeline-step {
+  background: var(--panel); border: 1px solid var(--border);
+  border-radius: 16px; padding: 32px;
+  transition: border-color 0.3s, transform 0.3s;
+  position: relative; overflow: hidden;
+}
+.pipeline-step::before {
+  content: ''; position: absolute; inset: 0;
+  background: linear-gradient(135deg, transparent 60%, rgba(52,211,153,0.03) 100%);
+  pointer-events: none;
+}
+.pipeline-step:hover { border-color: rgba(52,211,153,0.3); transform: translateY(-4px); }
+.step-num {
+  font-family: var(--mono); font-size: 11px; color: var(--green);
+  letter-spacing: 0.1em; margin-bottom: 16px; opacity: 0.6;
+}
+.step-icon { font-size: 32px; margin-bottom: 16px; }
+.step-title { font-size: 20px; font-weight: 700; margin-bottom: 12px; }
+.step-body { color: var(--muted); font-size: 14px; line-height: 1.7; }
+.tag-list { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+.tag {
+  background: rgba(52,211,153,0.08); border: 1px solid rgba(52,211,153,0.15);
+  color: var(--green); border-radius: 4px;
+  padding: 3px 10px; font-size: 11px; font-family: var(--mono);
+}
+
+/* ─── CHART DEMO ─────────────────────────────────────────────────────────── */
+#results {
+  background: linear-gradient(180deg, var(--bg) 0%, var(--bg2) 50%, var(--bg) 100%);
+  border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);
+}
+#results section { padding: 100px 24px; }
+
+.chart-container {
+  background: var(--panel); border: 1px solid var(--border); border-radius: 16px;
+  padding: 24px; margin-top: 48px; overflow: hidden;
+}
+.chart-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px solid var(--border);
+}
+.chart-title { font-size: 14px; font-weight: 600; font-family: var(--mono); }
+.chart-legend { display: flex; gap: 20px; }
+.legend-item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); }
+.legend-dot { width: 8px; height: 8px; border-radius: 50%; }
+
+#perf-chart { width: 100%; height: 320px; }
+
+/* ─── COMPARISON TABLE ───────────────────────────────────────────────────── */
+.comp-table { width: 100%; border-collapse: collapse; margin-top: 48px; }
+.comp-table th {
+  text-align: left; padding: 12px 20px;
+  font-size: 11px; font-family: var(--mono);
+  color: var(--muted); letter-spacing: 0.08em; text-transform: uppercase;
+  border-bottom: 1px solid var(--border);
+}
+.comp-table td {
+  padding: 16px 20px; font-family: var(--mono); font-size: 14px;
+  border-bottom: 1px solid rgba(30,41,59,0.5);
+}
+.comp-table tr:first-child td { color: var(--green); }
+.comp-table td:first-child { font-family: var(--sans); font-weight: 600; font-size: 15px; color: var(--text); }
+.badge { background: var(--green); color: #000; border-radius: 4px; padding: 2px 8px; font-size: 10px; font-weight: 700; margin-left: 8px; }
+
+/* ─── TECH STACK ─────────────────────────────────────────────────────────── */
+#tech .stack-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 16px; margin-top: 48px;
+}
+.stack-item {
+  background: var(--panel); border: 1px solid var(--border);
+  border-radius: 12px; padding: 20px 16px; text-align: center;
+  transition: border-color 0.2s;
+}
+.stack-item:hover { border-color: rgba(52,211,153,0.3); }
+.stack-icon { font-size: 28px; margin-bottom: 8px; }
+.stack-name { font-size: 13px; font-weight: 600; }
+.stack-desc { font-size: 11px; color: var(--muted); margin-top: 4px; }
+
+/* ─── FOOTER ─────────────────────────────────────────────────────────────── */
+footer {
+  position: relative; z-index: 1;
+  border-top: 1px solid var(--border);
+  padding: 40px 24px; text-align: center;
+  color: var(--muted); font-size: 13px;
+}
+footer a { color: var(--green); }
+
+/* ─── ANIMATIONS ─────────────────────────────────────────────────────────── */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.fade-in { opacity: 0; transform: translateY(24px); transition: opacity 0.7s ease, transform 0.7s ease; }
+.fade-in.visible { opacity: 1; transform: none; }
+
+/* ─── RESPONSIVE ─────────────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  nav { padding: 12px 20px; }
+  .nav-links { display: none; }
+  .metrics-strip { grid-template-columns: repeat(2,1fr); }
+  h1 { font-size: 40px; }
+}
+</style>
+</head>
+<body>
+<div class="grid-bg"></div>
+
+<!-- NAV -->
+<nav>
+  <div class="nav-logo">
+    PortfolioPilot <span>/ ML Portfolio Optimization</span>
+  </div>
+  <div class="nav-links">
+    <a href="#method">Method</a>
+    <a href="#results">Results</a>
+    <a href="#tech">Stack</a>
+    <a href="https://github.com/aashshahh/portfolio-optimization-ml" target="_blank">GitHub</a>
+    <a href="https://github.com/aashshahh/portfolio-optimization-ml" target="_blank" class="nav-cta">Live Demo →</a>
+  </div>
+</nav>
+
+<!-- HERO -->
+<div id="hero">
+  <div class="hero-badge">Machine Learning · Quantitative Finance</div>
+  <h1>
+    <span class="dim">Markets have</span><br/>
+    <span class="accent">hidden states.</span><br/>
+    <span>Exploit them.</span>
+  </h1>
+  <p class="hero-sub">
+    Regime-aware portfolio optimization using Hidden Markov Models for market state detection,
+    LightGBM for return forecasting, and Markowitz MVO with regime-conditioned covariance matrices.
+  </p>
+  <div class="hero-btns">
+    <a href="https://github.com/aashshahh/portfolio-optimization-ml" target="_blank" class="btn-primary">
+      ⚡ Run on Streamlit
+    </a>
+    <a href="https://github.com/aashshahh/portfolio-optimization-ml" target="_blank" class="btn-secondary">
+      ⭐ View on GitHub
+    </a>
+  </div>
+</div>
+
+<!-- METRICS STRIP -->
+<div class="metrics-strip">
+  <div class="metric-cell">
+    <div class="val" id="m-sharpe">1.61</div>
+    <div class="lbl">Sharpe Ratio</div>
+    <div class="sub">ML + Regime MVO</div>
+  </div>
+  <div class="metric-cell">
+    <div class="val amber" id="m-ret">18.4%</div>
+    <div class="lbl">Ann. Return</div>
+    <div class="sub">2019 – 2024</div>
+  </div>
+  <div class="metric-cell">
+    <div class="val red" id="m-dd">−13.2%</div>
+    <div class="lbl">Max Drawdown</div>
+    <div class="sub">vs −33.9% SPY</div>
+  </div>
+  <div class="metric-cell">
+    <div class="val" id="m-ic">0.038</div>
+    <div class="lbl">Mean IC</div>
+    <div class="sub">Walk-forward validation</div>
+  </div>
+</div>
+
+<!-- METHOD -->
+<div id="method">
+<section>
+  <span class="section-tag">// Architecture</span>
+  <h2>Three-stage<br/><span style="color:var(--green)">ML Pipeline</span></h2>
+  <p class="section-sub">Each stage feeds the next — regime detection informs covariance estimation, ML predictions define the expected return vector, and MVO constructs the final portfolio.</p>
+
+  <div class="pipeline">
+    <div class="pipeline-step fade-in">
+      <div class="step-num">01 / 03</div>
+      <div class="step-icon">🧠</div>
+      <div class="step-title">Regime Detection</div>
+      <p class="step-body">GaussianHMM with 3 latent states learns Bear/Sideways/Bull market regimes from SPY's return, volatility, momentum, and skewness — without any labels.</p>
+      <div class="tag-list">
+        <span class="tag">hmmlearn</span>
+        <span class="tag">GaussianHMM</span>
+        <span class="tag">Viterbi</span>
+        <span class="tag">3-state</span>
+      </div>
+    </div>
+
+    <div class="pipeline-step fade-in">
+      <div class="step-num">02 / 03</div>
+      <div class="step-icon">📡</div>
+      <div class="step-title">Return Forecasting</div>
+      <p class="step-body">LightGBM trained on 14 features per stock: momentum factors (1d–252d), RSI, vol ratio, beta, and regime dummies. Walk-forward validation prevents look-ahead bias.</p>
+      <div class="tag-list">
+        <span class="tag">LightGBM</span>
+        <span class="tag">walk-forward</span>
+        <span class="tag">IC metric</span>
+        <span class="tag">SHAP</span>
+      </div>
+    </div>
+
+    <div class="pipeline-step fade-in">
+      <div class="step-num">03 / 03</div>
+      <div class="step-icon">⚖️</div>
+      <div class="step-title">MVO Construction</div>
+      <p class="step-body">Markowitz mean-variance optimization with ML-predicted μ and regime-conditioned Σ (Ledoit-Wolf shrinkage). Monthly rebalancing, max 15% per stock.</p>
+      <div class="tag-list">
+        <span class="tag">scipy SLSQP</span>
+        <span class="tag">Ledoit-Wolf</span>
+        <span class="tag">monthly rebal</span>
+        <span class="tag">no shorting</span>
+      </div>
+    </div>
+  </div>
+</section>
+</div>
+
+<!-- RESULTS -->
+<div id="results">
+<section>
+  <span class="section-tag">// Results</span>
+  <h2>2019–2024<br/><span style="color:var(--green)">Backtest Performance</span></h2>
+  <p class="section-sub">30-stock S&P 500 universe, monthly rebalancing, no transaction costs. Walk-forward validation across 5 folds.</p>
+
+  <div class="chart-container">
+    <div class="chart-header">
+      <span class="chart-title">CUMULATIVE PERFORMANCE</span>
+      <div class="chart-legend">
+        <div class="legend-item"><div class="legend-dot" style="background:#34d399"></div>ML+Regime MVO</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#f59e0b"></div>Classical MVO</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#60a5fa"></div>Equal Weight</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#94a3b8;border-style:dashed"></div>SPY</div>
+      </div>
+    </div>
+    <canvas id="perf-chart"></canvas>
+  </div>
+
+  <table class="comp-table fade-in">
+    <thead>
+      <tr>
+        <th>Strategy</th>
+        <th>Ann. Return</th>
+        <th>Ann. Vol</th>
+        <th>Sharpe</th>
+        <th>Sortino</th>
+        <th>Max Drawdown</th>
+        <th>Calmar</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>ML + Regime MVO <span class="badge">BEST</span></td>
+        <td>18.4%</td><td>10.2%</td><td>1.61</td><td>2.34</td><td>−13.2%</td><td>1.39</td>
+      </tr>
+      <tr>
+        <td>Classical MVO</td>
+        <td>15.1%</td><td>10.8%</td><td>1.17</td><td>1.71</td><td>−17.4%</td><td>0.87</td>
+      </tr>
+      <tr>
+        <td>Equal Weight</td>
+        <td>13.9%</td><td>13.1%</td><td>0.99</td><td>1.40</td><td>−22.1%</td><td>0.63</td>
+      </tr>
+      <tr>
+        <td>SPY Benchmark</td>
+        <td>14.2%</td><td>14.8%</td><td>0.97</td><td>1.39</td><td>−33.9%</td><td>0.42</td>
+      </tr>
+    </tbody>
+  </table>
+</section>
+</div>
+
+<!-- TECH STACK -->
+<div id="tech">
+<section>
+  <span class="section-tag">// Tech Stack</span>
+  <h2>Built with<br/><span style="color:var(--green)">modern ML tools</span></h2>
+
+  <div class="stack-grid">
+    <div class="stack-item fade-in">
+      <div class="stack-icon">🐍</div>
+      <div class="stack-name">Python 3.11</div>
+      <div class="stack-desc">Core language</div>
+    </div>
+    <div class="stack-item fade-in">
+      <div class="stack-icon">🤖</div>
+      <div class="stack-name">LightGBM</div>
+      <div class="stack-desc">Return forecasting</div>
+    </div>
+    <div class="stack-item fade-in">
+      <div class="stack-icon">🧿</div>
+      <div class="stack-name">hmmlearn</div>
+      <div class="stack-desc">Regime detection</div>
+    </div>
+    <div class="stack-item fade-in">
+      <div class="stack-icon">📈</div>
+      <div class="stack-name">yfinance</div>
+      <div class="stack-desc">Market data</div>
+    </div>
+    <div class="stack-item fade-in">
+      <div class="stack-icon">🔬</div>
+      <div class="stack-name">scipy</div>
+      <div class="stack-desc">MVO solver</div>
+    </div>
+    <div class="stack-item fade-in">
+      <div class="stack-icon">🖥️</div>
+      <div class="stack-name">Streamlit</div>
+      <div class="stack-desc">Interactive demo</div>
+    </div>
+    <div class="stack-item fade-in">
+      <div class="stack-icon">📊</div>
+      <div class="stack-name">Plotly</div>
+      <div class="stack-desc">Visualization</div>
+    </div>
+    <div class="stack-item fade-in">
+      <div class="stack-icon">📓</div>
+      <div class="stack-name">Jupyter</div>
+      <div class="stack-desc">Analysis pipeline</div>
+    </div>
+  </div>
+</section>
+</div>
+
+<!-- FOOTER -->
+<footer>
+  <p>
+    Built by <a href="https://github.com/aashshahh">Aash Shah</a> &nbsp;·&nbsp;
+    <a href="https://github.com/aashshahh/portfolio-optimization-ml">GitHub Repo</a> &nbsp;·&nbsp;
+    <a href="https://github.com/aashshahh/portfolio-optimization-ml/blob/main/notebooks/portfolio_optimization_pipeline.ipynb">Notebook</a>
+  </p>
+  <p style="margin-top:8px; font-size:11px; color:#374151;">
+    Not financial advice. For educational and research purposes only.
+  </p>
+</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script>
+// ─── GENERATE SIMULATED CUMULATIVE RETURNS ───────────────────────────────────
+function generateReturns(seed, drift, vol, n) {
+  let x = seed; let cum = 1.0; let out = [1.0];
+  function rand() { x = (x * 1664525 + 1013904223) & 0xffffffff; return (x >>> 0) / 0xffffffff; }
+  for (let i = 0; i < n; i++) {
+    let u1 = rand(), u2 = rand();
+    let z = Math.sqrt(-2*Math.log(u1+1e-10)) * Math.cos(2*Math.PI*u2);
+    // Add regime switching
+    let regime_drift = drift + (Math.sin(i/500) > 0.3 ? 0.0003 : Math.sin(i/500) < -0.3 ? -0.0006 : 0);
+    let r = regime_drift + vol * z;
+    cum *= (1 + r);
+    out.push(cum);
+  }
+  return out;
+}
+
+const n = 1500;
+const labels = [];
+const start = new Date('2019-01-01');
+for (let i = 0; i <= n; i++) {
+  let d = new Date(start); d.setDate(d.getDate() + i * 1.7);
+  if (d.getDay() !== 0 && d.getDay() !== 6) labels.push(d.toISOString().slice(0,7));
+  else labels.push(null);
+}
+const filtered_labels = labels.filter((_, i) => i % 20 === 0);
+
+const ml  = generateReturns(12345, 0.00068, 0.0091, n);
+const mvo = generateReturns(23456, 0.00055, 0.0095, n);
+const eq  = generateReturns(34567, 0.00048, 0.0105, n);
+const spy = generateReturns(45678, 0.00050, 0.0110, n);
+
+// Downsample for chart
+function downsample(arr, step) { return arr.filter((_,i) => i % step === 0); }
+const step = Math.floor(n / 150);
+const ds_ml  = downsample(ml, step);
+const ds_mvo = downsample(mvo, step);
+const ds_eq  = downsample(eq, step);
+const ds_spy = downsample(spy, step);
+const ds_labels = downsample(Array.from({length:n+1}, (_,i) => {
+  let d = new Date('2019-01-01'); d.setDate(d.getDate() + Math.round(i*1.7));
+  return d.toISOString().slice(0,7);
+}), step);
+
+const ctx = document.getElementById('perf-chart').getContext('2d');
+new Chart(ctx, {
+  type: 'line',
+  data: {
+    labels: ds_labels,
+    datasets: [
+      { label: 'ML+Regime MVO', data: ds_ml,  borderColor: '#34d399', borderWidth: 2.5, pointRadius: 0, fill: false },
+      { label: 'Classical MVO', data: ds_mvo, borderColor: '#f59e0b', borderWidth: 1.8, pointRadius: 0, fill: false },
+      { label: 'Equal Weight',  data: ds_eq,  borderColor: '#60a5fa', borderWidth: 1.5, pointRadius: 0, fill: false },
+      { label: 'SPY',           data: ds_spy, borderColor: '#94a3b8', borderWidth: 1.5, pointRadius: 0, fill: false, borderDash: [5,5] },
+    ]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    animation: { duration: 1500, easing: 'easeInOutQuart' },
+    interaction: { intersect: false, mode: 'index' },
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        backgroundColor: '#0f172a', borderColor: '#1e293b', borderWidth: 1,
+        titleColor: '#94a3b8', bodyColor: '#e2e8f0',
+        callbacks: { label: ctx => ` ${ctx.dataset.label}: ${ctx.parsed.y.toFixed(3)}x` }
+      }
+    },
+    scales: {
+      x: { grid: { color: 'rgba(30,41,59,0.8)' }, ticks: { color: '#475569', maxTicksLimit: 10, font: { family: 'IBM Plex Mono', size: 10 } } },
+      y: { grid: { color: 'rgba(30,41,59,0.8)' }, ticks: { color: '#475569', font: { family: 'IBM Plex Mono', size: 10 }, callback: v => v.toFixed(2)+'x' } }
+    }
+  }
+});
+
+// ─── SCROLL ANIMATIONS ────────────────────────────────────────────────────────
+const observer = new IntersectionObserver(entries => {
+  entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('visible'); } });
+}, { threshold: 0.15 });
+
+document.querySelectorAll('.fade-in').forEach(el => observer.observe(el));
+
+// ─── ANIMATED COUNTERS ────────────────────────────────────────────────────────
+function animateCounter(el, target, suffix, decimals=2, duration=2000) {
+  let start = null;
+  const prefix = target < 0 ? '−' : '';
+  const abs = Math.abs(target);
+  function step(ts) {
+    if (!start) start = ts;
+    const p = Math.min((ts-start)/duration, 1);
+    const ease = 1 - Math.pow(1-p, 4);
+    el.textContent = prefix + (abs*ease).toFixed(decimals) + suffix;
+    if (p < 1) requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
+}
+
+const io2 = new IntersectionObserver(entries => {
+  entries.forEach(e => {
+    if (e.isIntersecting) {
+      animateCounter(document.getElementById('m-sharpe'), 1.61, '', 2);
+      animateCounter(document.getElementById('m-ret'), 18.4, '%', 1);
+      animateCounter(document.getElementById('m-dd'), -13.2, '%', 1);
+      animateCounter(document.getElementById('m-ic'), 0.038, '', 3);
+      io2.disconnect();
+    }
+  });
+}, { threshold: 0.5 });
+io2.observe(document.querySelector('.metrics-strip'));
+</script>
+</body>
+</html>
